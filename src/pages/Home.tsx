@@ -2,10 +2,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Login from '@/components/Login';
 import Register from '@/components/Register';
 
-function Home() {
+const Home = () => {
   return (
     <div className="flex flex-col">
-      <div className="flex flex-col items-center justify-center text-primary-foreground mt-[10%]">
+      <div className="flex flex-col items-center justify-center mt-[10%]">
         <h1 className="font-extrabold text-4xl">Budget app</h1>
         <h3 className="text-2xl">Manage your budget</h3>
       </div>
@@ -23,6 +23,6 @@ function Home() {
       </Tabs>
     </div>
   );
-}
+};
 
 export default Home;

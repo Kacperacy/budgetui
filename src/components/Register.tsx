@@ -12,6 +12,7 @@ import {
   FormMessage
 } from '@/components/ui/form.tsx';
 import { Card, CardContent, CardHeader } from '@/components/ui/card.tsx';
+import { useAuth } from '@/hooks/AuthProvider.tsx';
 
 const registerSchema = z
   .object({
@@ -29,8 +30,17 @@ function Register() {
     resolver: zodResolver(registerSchema)
   });
 
+  const { register } = useAuth();
   const onSubmit = (values: z.infer<typeof registerSchema>) => {
-    console.log(values);
+    if (values.password !== values.confirmPassword) {
+      return;
+    }
+
+    const user = {
+      email: values.email,
+      password: values.password
+    };
+    register(user);
   };
 
   return (

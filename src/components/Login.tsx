@@ -12,6 +12,7 @@ import {
   FormMessage
 } from '@/components/ui/form.tsx';
 import { Card, CardContent, CardHeader } from '@/components/ui/card.tsx';
+import { useAuth } from '@/hooks/AuthProvider.tsx';
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -23,8 +24,9 @@ function Login() {
     resolver: zodResolver(loginSchema)
   });
 
+  const { login } = useAuth();
   const onSubmit = (values: z.infer<typeof loginSchema>) => {
-    console.log(values);
+    login(values);
   };
 
   return (
