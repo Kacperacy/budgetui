@@ -6,6 +6,8 @@ import Home from '@/pages/Home.tsx';
 import { AuthProvider } from '@/hooks/AuthProvider.tsx';
 import PrivateRoute from '@/pages/PrivateRoute.tsx';
 import Dashboard from '@/pages/Dashboard.tsx';
+import Details from '@/pages/Details.tsx';
+import { Toaster } from '@/components/ui/toaster';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -16,8 +18,10 @@ createRoot(document.getElementById('root')!).render(
             <Route path="/" element={<Home />} />
             <Route element={<PrivateRoute />}>
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/details/:id" element={<Details />} />
             </Route>
           </Routes>
+          <Toaster />
         </AuthProvider>
       </div>
     </Router>

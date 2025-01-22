@@ -11,8 +11,9 @@ import {
   FormLabel,
   FormMessage
 } from '@/components/ui/form.tsx';
-import { Card, CardContent, CardHeader } from '@/components/ui/card.tsx';
 import { useAuth } from '@/hooks/AuthProvider.tsx';
+import { useToast } from '@/hooks/useToast';
+import { ToastAction } from '@/components/ui/toast';
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -25,26 +26,49 @@ function Login() {
   });
 
   const { login } = useAuth();
-  const onSubmit = (values: z.infer<typeof loginSchema>) => {
-    login(values);
+  const { toast } = useToast();
+
+  const onSubmit = async (values: z.infer<typeof loginSchema>) => {
+    try {
+      await login(values);
+    } catch (error) {
+      console.error('Login error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Authentication Error',
+        description: 'Please check your credentials and try again.',
+        action: (
+          <ToastAction altText="Try again" onClick={() => form.reset()}>
+            Try again
+          </ToastAction>
+        )
+      });
+    }
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <h2 className="text-xl font-semibold">Login</h2>
-      </CardHeader>
-      <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)}>
+    <div className="space-y-6 min-w-[320px] min-h-[400px]">
+      <div className="space-y-2">
+        <h2 className="text-lg font-medium">Welcome back</h2>
+        <p className="text-sm text-muted-foreground">
+          Enter your credentials to access your account
+        </p>
+      </div>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <div className="space-y-4 min-h-[240px]">
             <FormField
               control={form.control}
               name="email"
               render={({ field }) => (
-                <FormItem className="mb-4">
+                <FormItem className="min-w-full">
                   <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <Input placeholder="Email" {...field} />
+                    <Input
+                      placeholder="name@example.com"
+                      className="bg-background w-full"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -54,22 +78,27 @@ function Login() {
               control={form.control}
               name="password"
               render={({ field }) => (
-                <FormItem className="mb-4">
+                <FormItem className="min-w-full">
                   <FormLabel>Password</FormLabel>
                   <FormControl>
-                    <Input type="password" placeholder="Password" {...field} />
+                    <Input
+                      type="password"
+                      placeholder="Enter your password"
+                      className="bg-background w-full"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <div className="text-center">
-              <Button type="submit">Login</Button>
-            </div>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
+          </div>
+          <Button type="submit" className="w-full">
+            Sign in
+          </Button>
+        </form>
+      </Form>
+    </div>
   );
 }
 

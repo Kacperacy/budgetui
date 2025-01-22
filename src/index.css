@@ -40,6 +40,10 @@
         --ring: 227 56% 53%;
         --radius: 0.5rem;
     }
+
+    input[type="date"]::-webkit-calendar-picker-indicator {
+        filter: invert(1);
+    }
 }
 
 @layer base {

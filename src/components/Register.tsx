@@ -11,54 +11,97 @@ import {
   FormLabel,
   FormMessage
 } from '@/components/ui/form.tsx';
-import { Card, CardContent, CardHeader } from '@/components/ui/card.tsx';
 import { useAuth } from '@/hooks/AuthProvider.tsx';
+import { useToast } from '@/hooks/useToast';
+import { ToastAction } from '@/components/ui/toast';
+import { useNavigate } from 'react-router-dom';
 
 const registerSchema = z
   .object({
-    email: z.string().email(),
-    password: z.string().min(6),
-    confirmPassword: z.string().min(6)
+    email: z.string().email('Invalid email address'),
+    password: z.string().min(6, 'Password must be at least 6 characters'),
+    confirmPassword: z.string()
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords don't match",
     path: ['confirmPassword']
   });
 
+type RegisterFormData = z.infer<typeof registerSchema>;
+
 function Register() {
-  const form = useForm<z.infer<typeof registerSchema>>({
+  const form = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema)
   });
 
-  const { register } = useAuth();
-  const onSubmit = (values: z.infer<typeof registerSchema>) => {
-    if (values.password !== values.confirmPassword) {
-      return;
-    }
+  const { register, login } = useAuth();
+  const { toast } = useToast();
+  const navigate = useNavigate();
 
-    const user = {
-      email: values.email,
-      password: values.password
-    };
-    register(user);
+  const onSubmit = async (values: RegisterFormData) => {
+    try {
+      const { email, password } = values;
+      const registerSuccess = await register({ email, password });
+
+      if (registerSuccess) {
+        try {
+          await login({ email, password });
+          toast({
+            title: 'Success',
+            description: 'Account created successfully',
+            className: 'bg-green-500 text-white'
+          });
+        } catch (loginError) {
+          console.error('Login error after registration:', loginError);
+          toast({
+            variant: 'destructive',
+            title: 'Login Failed',
+            description:
+              'Registration successful but login failed. Please try logging in manually.',
+            action: (
+              <ToastAction altText="Try again" onClick={() => navigate('/')}>
+                Go to login
+              </ToastAction>
+            )
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Registration error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Registration Failed',
+        description: 'An account with this email may already exist.',
+        action: (
+          <ToastAction altText="Try again" onClick={() => form.reset()}>
+            Try again
+          </ToastAction>
+        )
+      });
+    }
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <h2 className="text-xl font-semibold">Register</h2>
-      </CardHeader>
-      <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)}>
+    <div className="space-y-6 min-w-[320px] min-h-[400px]">
+      <div className="space-y-2">
+        <h2 className="text-lg font-medium">Create an account</h2>
+        <p className="text-sm text-muted-foreground">Enter your details to get started</p>
+      </div>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <div className="space-y-4 min-h-[240px]">
             <FormField
               control={form.control}
               name="email"
               render={({ field }) => (
-                <FormItem className="mb-4">
+                <FormItem className="min-w-full">
                   <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <Input placeholder="Email" {...field} />
+                    <Input
+                      placeholder="name@example.com"
+                      className="bg-background w-full"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -68,10 +111,15 @@ function Register() {
               control={form.control}
               name="password"
               render={({ field }) => (
-                <FormItem className="mb-4">
+                <FormItem className="min-w-full">
                   <FormLabel>Password</FormLabel>
                   <FormControl>
-                    <Input type="password" placeholder="Password" {...field} />
+                    <Input
+                      type="password"
+                      placeholder="Create a password"
+                      className="bg-background w-full"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -81,24 +129,27 @@ function Register() {
               control={form.control}
               name="confirmPassword"
               render={({ field }) => (
-                <FormItem className="mb-4">
+                <FormItem className="min-w-full">
                   <FormLabel>Confirm Password</FormLabel>
                   <FormControl>
-                    <Input type="password" placeholder="Confirm Password" {...field} />
+                    <Input
+                      type="password"
+                      placeholder="Confirm your password"
+                      className="bg-background w-full"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <div className="text-center">
-              <Button type="submit" className={'secondary'}>
-                Register
-              </Button>
-            </div>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
+          </div>
+          <Button type="submit" className="w-full">
+            Create account
+          </Button>
+        </form>
+      </Form>
+    </div>
   );
 }
 
