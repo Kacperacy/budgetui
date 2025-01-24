@@ -133,7 +133,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     navigate('/');
   };
 
-  const api = useCallback(
+  // const api =
+  useCallback(
     async (url: string, options: RequestInit = {}) => {
       let currentToken = token;
 

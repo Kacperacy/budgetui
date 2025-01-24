@@ -7,7 +7,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger
+  DialogTrigger,
+  DialogDescription
 } from '@/components/ui/dialog';
 import { useAuth } from '@/hooks/AuthProvider.tsx';
 import { Budget } from '@/types/Budget';
@@ -18,6 +19,19 @@ import { Badge } from '@/components/ui/badge';
 import Navbar from '@/components/Navbar';
 import { useToast } from '@/hooks/useToast';
 import { ToastAction } from '@/components/ui/toast';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage
+} from '@/components/ui/form';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { calculateRemainingBudget } from '@/util/calculateRemainingBudget';
 
 interface Expense {
   amount: number;
@@ -27,20 +41,82 @@ interface Expense {
   budgetId: string;
 }
 
+const expenseSchema = z.object({
+  amount: z.number().min(0.01, 'Amount must be greater than 0'),
+  date: z.string().min(1, 'Date is required'),
+  description: z.string().min(1, 'Description is required'),
+  categoryId: z.string().nullable()
+});
+
+type ExpenseFormData = z.infer<typeof expenseSchema>;
+
+const LoadingState = () => {
+  return (
+    <>
+      <Navbar />
+      <div className="container mx-auto p-4 max-w-4xl pt-20">
+        <Skeleton className="h-8 w-48 mb-4" />
+        <Card className="mb-8">
+          <CardHeader>
+            <Skeleton className="h-8 w-64 mb-2" />
+            <Skeleton className="h-4 w-32" />
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-8 w-32" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-6 w-48" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <Skeleton className="h-6 w-24" />
+            <Skeleton className="h-10 w-28" />
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <Card key={i} className="bg-secondary">
+                  <CardContent className="flex justify-between items-center p-4">
+                    <div className="space-y-2">
+                      <Skeleton className="h-5 w-32" />
+                      <Skeleton className="h-4 w-24" />
+                    </div>
+                    <Skeleton className="h-6 w-20" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Skeleton className="h-10 w-20 mt-6" />
+      </div>
+    </>
+  );
+};
+
 const Details = () => {
-  const { logout } = useAuth();
   const { id } = useParams<{ id: string }>();
   const [budget, setBudget] = useState<Budget | null>(null);
-  const [newExpense, setNewExpense] = useState<Expense>({
-    amount: 0,
-    date: '',
-    description: '',
-    categoryId: null,
-    budgetId: id || ''
-  });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { token } = useAuth();
   const { toast } = useToast();
+
+  const form = useForm<ExpenseFormData>({
+    resolver: zodResolver(expenseSchema),
+    defaultValues: {
+      amount: 0,
+      date: new Date().toISOString().split('T')[0],
+      description: '',
+      categoryId: null
+    }
+  });
 
   const fetchBudgetDetails = async () => {
     try {
@@ -60,51 +136,46 @@ const Details = () => {
     fetchBudgetDetails();
   }, [id, token]);
 
-  const handleAddExpense = async () => {
-    if (newExpense.amount && newExpense.date.trim() && newExpense.description.trim()) {
-      try {
-        const response = await fetch(`http://localhost:8080/api/expense`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-          },
-          body: JSON.stringify(newExpense)
-        });
+  const handleAddExpense = async (values: ExpenseFormData) => {
+    try {
+      const response = await fetch(`http://localhost:8080/api/expense`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ ...values, budgetId: id })
+      });
 
-        if (!response.ok) {
-          throw new Error('Failed to add expense');
-        }
-
-        await fetchBudgetDetails();
-        setIsDialogOpen(false);
-        toast({
-          title: 'Success',
-          description: 'Expense added successfully',
-          className: 'bg-green-500 text-white'
-        });
-      } catch (error) {
-        toast({
-          variant: 'destructive',
-          title: 'Error Adding Expense',
-          description: 'Please check your input and try again.',
-          action: (
-            <ToastAction altText="Try again" onClick={() => setIsDialogOpen(true)}>
-              Try again
-            </ToastAction>
-          )
-        });
+      if (!response.ok) {
+        throw new Error('Failed to add expense');
       }
+
+      await fetchBudgetDetails();
+      setIsDialogOpen(false);
+      form.reset();
+      toast({
+        title: 'Success',
+        description: 'Expense added successfully',
+        className: 'bg-green-500 text-white'
+      });
+    } catch (error) {
+      console.error('Error adding expense:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error Adding Expense',
+        description: 'Please check your input and try again.',
+        action: (
+          <ToastAction altText="Try again" onClick={() => setIsDialogOpen(true)}>
+            Try again
+          </ToastAction>
+        )
+      });
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setNewExpense({ ...newExpense, [name]: value });
-  };
-
   if (!budget) {
-    return <div>Loading...</div>;
+    return <LoadingState />;
   }
 
   return (
@@ -128,6 +199,25 @@ const Details = () => {
                 {formatDate(budget.startDate)} - {formatDate(budget.endDate)}
               </p>
             </div>
+            <div className="col-span-2 pt-4 border-t">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-sm text-muted-foreground">Remaining Budget</p>
+                  <p
+                    className={`text-2xl font-bold ${
+                      calculateRemainingBudget(budget) < 0 ? 'text-destructive' : 'text-green-500'
+                    }`}>
+                    {calculateRemainingBudget(budget)} zł
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-muted-foreground">Total Expenses</p>
+                  <p className="text-xl font-semibold text-muted-foreground">
+                    {budget.expenses.reduce((sum, expense) => sum + expense.amount, 0)} zł
+                  </p>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
@@ -141,47 +231,79 @@ const Details = () => {
               <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                   <DialogTitle>Add New Expense</DialogTitle>
+                  <DialogDescription>
+                    Add a new expense to your budget. Fill in the details below.
+                  </DialogDescription>
                 </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid gap-2">
-                    <Input
-                      type="number"
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(handleAddExpense)} className="space-y-4">
+                    <FormField
+                      control={form.control}
                       name="amount"
-                      placeholder="Enter expense amount"
-                      value={newExpense.amount}
-                      onChange={handleChange}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Amount</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              placeholder="0.00"
+                              {...field}
+                              onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                  </div>
-                  <div className="grid gap-2">
-                    <Input
-                      type="date"
+                    <FormField
+                      control={form.control}
                       name="date"
-                      value={newExpense.date}
-                      onChange={handleChange}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Date</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                  </div>
-                  <div className="grid gap-2">
-                    <Input
-                      type="text"
+                    <FormField
+                      control={form.control}
                       name="description"
-                      placeholder="Enter expense description"
-                      value={newExpense.description}
-                      onChange={handleChange}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Description</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter expense description" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                  </div>
-                  <div className="grid gap-2">
-                    <Input
-                      type="text"
+                    <FormField
+                      control={form.control}
                       name="categoryId"
-                      placeholder="Enter category ID (optional)"
-                      value={newExpense.categoryId || ''}
-                      onChange={handleChange}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Category (Optional)</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Enter category ID"
+                              {...field}
+                              value={field.value || ''}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                  </div>
-                </div>
-                <Button onClick={handleAddExpense} className="w-full">
-                  Add Expense
-                </Button>
+                    <Button type="submit" className="w-full">
+                      Add Expense
+                    </Button>
+                  </form>
+                </Form>
               </DialogContent>
             </Dialog>
           </CardHeader>
