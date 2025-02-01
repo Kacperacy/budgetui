@@ -19,12 +19,13 @@ import { ToastAction } from '@/components/ui/toast';
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage
 } from '@/components/ui/form';
-import { useForm } from 'react-hook-form';
+import { useForm, UseFormReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { createPortal } from 'react-dom';
@@ -45,7 +46,7 @@ const budgetSchema = z
 
 type BudgetFormData = z.infer<typeof budgetSchema>;
 
-const CreateBudgetDialog = ({
+export const CreateBudgetDialog = ({
   open,
   onOpenChange,
   onSubmit,
@@ -54,7 +55,7 @@ const CreateBudgetDialog = ({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (values: BudgetFormData) => Promise<void>;
-  form: any;
+  form: UseFormReturn<BudgetFormData>;
 }) => {
   return createPortal(
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -221,25 +222,31 @@ const Dashboard = () => {
         body: JSON.stringify(values)
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to create budget');
-      }
+      // Read the response body
+      const newBudget = await response.json();
 
-      const data = await response.json();
-      setBudgets([...budgets, data]);
-      setIsDialogOpen(false);
-      form.reset();
-      toast({
-        title: 'Success',
-        description: 'Budget created successfully',
-        className: 'bg-green-500 text-white'
-      });
+      // Handle both successful creation (201) and other responses
+      if (response.status === 201 && newBudget) {
+        setBudgets((prevBudgets) => [...prevBudgets, newBudget]);
+        setIsDialogOpen(false);
+        form.reset();
+
+        toast({
+          title: 'Success',
+          description: 'Budget created successfully',
+          className: 'bg-green-500 text-white'
+        });
+      } else {
+        // If we got here, something went wrong
+        throw new Error(newBudget.message || 'Failed to create budget');
+      }
     } catch (error) {
       console.error('Error creating budget:', error);
       toast({
         variant: 'destructive',
         title: 'Error Creating Budget',
-        description: 'Please check your input and try again.',
+        description:
+          error instanceof Error ? error.message : 'Please check your input and try again.',
         action: (
           <ToastAction altText="Try again" onClick={() => setIsDialogOpen(true)}>
             Try again
@@ -342,7 +349,7 @@ const Dashboard = () => {
               <Card
                 className="hover:shadow-lg transition-shadow border-dashed cursor-pointer h-full"
                 onClick={() => setIsDialogOpen(true)}>
-                <CardContent className="flex flex-col items-center justify-center h-full space-y-4">
+                <CardContent className="flex flex-col items-center justify-center h-full space-y-6 p-6">
                   <div className="rounded-full bg-secondary w-16 h-16 flex items-center justify-center">
                     <span className="text-4xl leading-none mb-1">+</span>
                   </div>
@@ -371,7 +378,7 @@ const Dashboard = () => {
         )}
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent>
+          <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>Create New Budget</DialogTitle>
               <DialogDescription>
